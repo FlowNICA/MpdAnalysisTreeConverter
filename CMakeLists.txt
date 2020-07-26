@@ -17,8 +17,6 @@ add_definitions(${ROOT_CXX_FLAGS})
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -g")
 
-include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
-
 #---Locate AnalysisTree library
 find_library(AnalysisTree NAMES AnalysisTreeBase PATHS $ENV{ANALYSISTREE_LIB})
 if (AnalysisTree)
@@ -27,6 +25,14 @@ endif()
 if (NOT AnalysisTree)
   message(FATAL_ERROR "Error: AnalysisTree library wasn't found!")
 endif()
+
+set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${ROOT_INLCUDE_DIRS}
+  $ENV{ANALYSISTREE_INC}
+)
+
+include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
 
 #---Locate FairSoft/FairRoot package
 set(FAIRSOFT_PATH $ENV{FAIRROOTPATH}/share/fairbase/cmake/modules)

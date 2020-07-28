@@ -7,15 +7,7 @@ find_package(Git)
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
 #---Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
-find_package(ROOT REQUIRED COMPONENTS MathCore RIO Hist Tree Net MathMore EG)
-
-#---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
-include(${ROOT_USE_FILE})
-
-add_definitions(${ROOT_CXX_FLAGS})
-
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -g")
+find_package(ROOT REQUIRED COMPONENTS MathCore RIO Hist Tree Net MathMore)
 
 #---Locate AnalysisTree library
 find_library(AnalysisTree NAMES AnalysisTreeBase PATHS $ENV{ANALYSISTREE_LIB})
@@ -26,14 +18,6 @@ if (NOT AnalysisTree)
   message(FATAL_ERROR "Error: AnalysisTree library wasn't found!")
 endif()
 
-set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${ROOT_INLCUDE_DIRS}
-  $ENV{ANALYSISTREE_INC}
-)
-
-include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
-
 #---Locate FairSoft/FairRoot package
 set(FAIRSOFT_PATH $ENV{FAIRROOTPATH}/share/fairbase/cmake/modules)
 list(APPEND CMAKE_MODULE_PATH ${FAIRSOFT_PATH})
@@ -41,6 +25,21 @@ find_package(FairRoot QUIET COMPONENTS Base)
 if(NOT FAIRROOT_FOUND)
   message(FATAL_ERROR "FairRoot package NOT found.")
 endif()
+
+#---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
+include(${ROOT_USE_FILE})
+
+add_definitions(${ROOT_CXX_FLAGS})
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -g")
+set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${ROOT_INLCUDE_DIRS}
+  $ENV{ANALYSISTREE_INC}
+)
+
+include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
 
 if(NOT DEFINED ENV{VMCWORKDIR})
   message(FATAL_ERROR "MpdRoot environment is NOT found. Skip corresponding step.")
@@ -99,14 +98,14 @@ find_library(MPDPID NAMES MpdPid PATHS $ENV{FAIRLIBDIR})
 #---Get all needed libraries together
 if(MCSTACK)
 set(MPD_AT_CONVERTER_INCLUDE_LIBRARIES
-  ${AnalysisTree} ${BASE}
+  ${AnalysisTree} ${ROOT_LIBRARIES} ${BASE}
   ${MCSTACK} ${PASSIVE} ${KALMAN} ${CLUSTER} ${TPC} ${STS} ${ZDC} ${FFD}
   ${STRAWECT} ${STRAWENDCAP} ${LHETRACK} ${TOF}
   ${MPDFIELD} ${MPDBASE} ${MPDDST} ${MPDGENERALGENERATOR} ${MPDPID}
 )
 elseif(MPDMCSTACK)
 set(MPD_AT_CONVERTER_INCLUDE_LIBRARIES
-  ${AnalysisTree} ${BASE}
+  ${AnalysisTree} ${ROOT_LIBRARIES} ${BASE}
   ${MPDMCSTACK} ${PASSIVE} ${KALMAN} ${CLUSTER} ${TPC} ${STS} ${ZDC} ${FFD}
   ${STRAWECT} ${STRAWENDCAP} ${LHETRACK} ${TOF}
   ${MPDFIELD} ${MPDBASE} ${MPDDST} ${MPDGENERALGENERATOR} ${MPDPID}

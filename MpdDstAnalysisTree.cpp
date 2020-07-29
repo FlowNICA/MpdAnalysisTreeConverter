@@ -31,6 +31,7 @@
 
 // AnalysisTree headers
 #include "AnalysisTree/Configuration.hpp"
+#include "AnalysisTree/EventHeader.hpp"
 #include "AnalysisTree/Detector.hpp"
 #include "AnalysisTree/Matching.hpp"
 
@@ -133,14 +134,21 @@ int main(int argc, char **argv)
   AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
 
   // Set up AnalysisTree configuration
+  std::string str_reco_event_branch = "RecoEvent.";
+  std::string str_mc_event_branch = "McEvent.";
   std::string str_tpc_tracks_branch = "TpcTracks.";
   std::string str_fhcal_branch = "FHCalModules.";
   std::string str_mc_tracks_branch = "McTracks.";
   std::string str_tpc2mc_tracks_branch = "TpcTracks2McTracks";
 
+  AnalysisTree::BranchConfig reco_event_branch(str_reco_event_branch.c_str(), AnalysisTree::DetType::kEventHeader); 
+  AnalysisTree::BranchConfig mc_event_branch(str_mc_event_branch.c_str(), AnalysisTree::DetType::kEventHeader); 
   AnalysisTree::BranchConfig fhcal_branch(str_fhcal_branch.c_str(), AnalysisTree::DetType::kModule); 
   AnalysisTree::BranchConfig tpc_tracks_branch(str_tpc_tracks_branch.c_str(), AnalysisTree::DetType::kTrack); 
-  AnalysisTree::BranchConfig mc_tracks_branch(str_mc_tracks_branch.c_str(), AnalysisTree::DetType::kParticle); 
+  AnalysisTree::BranchConfig mc_tracks_branch(str_mc_tracks_branch.c_str(), AnalysisTree::DetType::kParticle);
+
+  mc_event_branch.AddField<float>("B");
+  mc_event_branch.AddField<float>("PhiRp");
 
   tpc_tracks_branch.AddField<int>("nhits");
   tpc_tracks_branch.AddField<int>("nhits_poss");
@@ -155,6 +163,10 @@ int main(int argc, char **argv)
   tpc_tracks_branch.AddField<float>("pid_prob_proton");
 
   mc_tracks_branch.AddField<int>("mother_id");
+
+  // mc_event's additional field ids
+  const int iB = mc_event_branch.GetFieldId("B");
+  const int iPhiRp = mc_event_branch.GetFieldId("PhiRp");
 
   // tpc_tracks' additional field ids
   const int inhits = tpc_tracks_branch.GetFieldId("nhits");
@@ -175,6 +187,10 @@ int main(int argc, char **argv)
   const int imother_id = mc_tracks_branch.GetFieldId("mother_id");
 
   // Initialize AnalysisTree Dst components
+  out_config->AddBranchConfig(std::move(reco_event_branch));
+  AnalysisTree::EventHeader *reco_event = new AnalysisTree::EventHeader( out_config->GetLastId() );
+  out_config->AddBranchConfig(std::move(mc_event_branch));
+  AnalysisTree::EventHeader *mc_event = new AnalysisTree::EventHeader( out_config->GetLastId() );
   out_config->AddBranchConfig(std::move(tpc_tracks_branch));
   AnalysisTree::TrackDetector *tpc_tracks = new AnalysisTree::TrackDetector( out_config->GetLastId() ); 
   out_config->AddBranchConfig(std::move(fhcal_branch));
@@ -185,6 +201,8 @@ int main(int argc, char **argv)
   out_config->AddMatch(str_tpc_tracks_branch, str_mc_tracks_branch, str_tpc2mc_tracks_branch);
 
   // Create branches in the output tree
+  outTree->Branch(str_reco_event_branch.c_str(), "AnalysisTree::EventHeader", &reco_event, 32000, 99);
+  outTree->Branch(str_mc_event_branch.c_str(), "AnalysisTree::EventHeader", &mc_event, 32000, 99);
   outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 256000, 99);
   outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 128000, 99);
   outTree->Branch(str_mc_tracks_branch.c_str(), "AnalysisTree::Particles",  &mc_tracks, 256000, 99);
@@ -192,6 +210,11 @@ int main(int argc, char **argv)
 
   // Printout basic configuration info
   std::cout << "\nAnalysisTree configuration:" << std::endl;
+  std::cout << Form("%15s : Id = %2i",   str_reco_event_branch.c_str(), reco_event->GetId()   ) << std::endl;
+  std::cout << Form("%15s : Id = %2i",   str_mc_event_branch.c_str(), mc_event->GetId()   ) << std::endl;
+  std::cout << "\tAdditional fields:" << std::endl;
+  std::cout << "\t\tB         :" << iB << std::endl;
+  std::cout << "\t\tPhiRp     :" << iPhiRp << std::endl;
   std::cout << Form("%15s : Id = %2i",   str_tpc_tracks_branch.c_str(), tpc_tracks->GetId()   ) << std::endl;
   std::cout << "\tAdditional fields:" << std::endl;
   std::cout << "\t\tNhits     :" << inhits << std::endl;
@@ -242,6 +265,19 @@ int main(int argc, char **argv)
     tpc_tracks->ClearChannels();
     fhcal_modules->ClearChannels();
     mc_tracks->ClearChannels();
+
+    // Reading Reco Event
+    MpdVertex *vertex = (MpdVertex *)vertexes->First();
+    vertex->Position(primaryVertex);
+    reco_event->SetVertexPosition3(primaryVertex);
+
+    // Read MC Event
+    mc_event->Init(out_config->GetBranchConfig(mc_event->GetId()));
+    mc_event->SetVertexX(MCHeader->GetX());
+    mc_event->SetVertexY(MCHeader->GetY());
+    mc_event->SetVertexZ(MCHeader->GetZ());
+    mc_event->SetField(float(MCHeader->GetB()), iB);
+    mc_event->SetField(float(MCHeader->GetRotZ()), iPhiRp);
 
     // Read energy in FHCal modules 
     fhcal_modules->Reserve(Num_Of_Modules);

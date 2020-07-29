@@ -139,6 +139,7 @@ int main(int argc, char **argv)
   std::string str_tpc_tracks_branch = "TpcTracks.";
   std::string str_fhcal_branch = "FHCalModules.";
   std::string str_mc_tracks_branch = "McTracks.";
+  std::string str_tpc2mc_tracks_branch = "TpcTracks2McTracks";
 
   AnalysisTree::BranchConfig fhcal_branch(str_fhcal_branch.c_str(), AnalysisTree::DetType::kModule); 
   AnalysisTree::BranchConfig tpc_tracks_branch(str_tpc_tracks_branch.c_str(), AnalysisTree::DetType::kTrack); 
@@ -183,11 +184,14 @@ int main(int argc, char **argv)
   AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( out_config->GetLastId() );
   out_config->AddBranchConfig(std::move(mc_tracks_branch));
   AnalysisTree::Particles *mc_tracks = new AnalysisTree::Particles( out_config->GetLastId() ); 
+  AnalysisTree::Matching *tpc2mc_tracks = new AnalysisTree::Matching(out_config->GetBranchConfig(str_tpc_tracks_branch).GetId(), out_config->GetBranchConfig(str_mc_tracks_branch).GetId());
+  out_config->AddMatch(str_tpc_tracks_branch, str_mc_tracks_branch, str_tpc2mc_tracks_branch);
 
   // Create branches in the output tree
   outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 256000, 99);
   outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 128000, 99);
   outTree->Branch(str_mc_tracks_branch.c_str(), "AnalysisTree::Particles",  &mc_tracks, 256000, 99);
+  outTree->Branch(str_tpc2mc_tracks_branch.c_str(), "AnalysisTree::Matching", &tpc2mc_tracks, 32000, 99);
 
   // Printout basic configuration info
   std::cout << "\nAnalysisTree configuration:" << std::endl;
@@ -210,6 +214,7 @@ int main(int argc, char **argv)
   std::cout << Form("%15s : Id = %2i",   str_mc_tracks_branch.c_str(), mc_tracks->GetId()   ) << std::endl;
   std::cout << "\tAdditional fields:" << std::endl;
   std::cout << "\t\tMother_Id :" << imother_id << std::endl;
+  std::cout << Form("%30s", str_tpc2mc_tracks_branch.c_str()) << std::endl;
   std::cout << std::endl;
 
   // Starting event loop
@@ -230,6 +235,7 @@ int main(int argc, char **argv)
 
     UsedMCTracks.clear();
     InitMcNewMcId.clear();
+    tpc2mc_tracks->Clear();
     for (int i=0; i<Num_Of_Modules; i++)
     {
       FHCalSumEnergy[i] = 0.;
@@ -348,6 +354,14 @@ int main(int argc, char **argv)
       track->SetField(int(mctrack->GetMotherId()), imother_id);
     } // End of the mc track loop
 
+    // reco-mc tracks matching
+    for (const auto& track_id : InitMcNewMcId)
+    {
+      const int tpc_track_id = track_id.first;
+      const int mc_track_id  = track_id.second;
+      tpc2mc_tracks->AddMatch(tpc_track_id, mc_track_id);
+    }
+
     outTree->Fill();
   } // End of the event loop
   
@@ -355,8 +369,6 @@ int main(int argc, char **argv)
   outTree->Print();
   outTree->Write();
   outFile->Close();
-
-  //delete fhcal_modules;
 
   timer.Stop();
   timer.Print();

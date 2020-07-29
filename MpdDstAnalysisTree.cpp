@@ -32,9 +32,6 @@
 // AnalysisTree headers
 #include "AnalysisTree/Configuration.hpp"
 #include "AnalysisTree/Detector.hpp"
-#include "AnalysisTree/Module.hpp"
-#include "AnalysisTree/Track.hpp"
-#include "AnalysisTree/Particle.hpp"
 #include "AnalysisTree/Matching.hpp"
 
 int main(int argc, char **argv)
@@ -355,10 +352,11 @@ int main(int argc, char **argv)
     } // End of the mc track loop
 
     // reco-mc tracks matching
-    for (const auto& track_id : InitMcNewMcId)
+    for (int itrack=0; itrack<Num_of_tpc_tracks; itrack++)
     {
-      const int tpc_track_id = track_id.first;
-      const int mc_track_id  = track_id.second;
+      MpdTrack* mpdtrack = (MpdTrack*) MpdGlobalTracks->UncheckedAt(itrack);
+      const int tpc_track_id = itrack;
+      const int mc_track_id  = InitMcNewMcId[mpdtrack->GetID()];
       tpc2mc_tracks->AddMatch(tpc_track_id, mc_track_id);
     }
 

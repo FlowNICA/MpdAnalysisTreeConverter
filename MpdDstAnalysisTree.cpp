@@ -32,6 +32,7 @@
 // AnalysisTree headers
 #include "AnalysisTree/Configuration.hpp"
 #include "AnalysisTree/Detector.hpp"
+#include "AnalysisTree/Matching.hpp"
 
 int main(int argc, char **argv)
 {
@@ -129,14 +130,71 @@ int main(int argc, char **argv)
   TTree *outTree = new TTree("mpd_analysistree","AnalysisTree Dst at MPD");
 
   // Set up AnalysisTree configureation
-  //AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
-  AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( Num_Of_Modules );
+  AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
+
+  // Set up AnalysisTree configuration
+  std::string str_tpc_tracks_branch = "TpcTracks.";
+  std::string str_fhcal_branch = "FHCalModules.";
+
+  AnalysisTree::BranchConfig fhcal_branch(str_fhcal_branch.c_str(), AnalysisTree::DetType::kModule); 
+  AnalysisTree::BranchConfig tpc_tracks_branch(str_tpc_tracks_branch.c_str(), AnalysisTree::DetType::kTrack); 
+
+  tpc_tracks_branch.AddField<int>("nhits");
+  tpc_tracks_branch.AddField<int>("nhits_poss");
+  tpc_tracks_branch.AddField<int>("charge");
+  tpc_tracks_branch.AddFields<float>({"dca_x","dca_y","dca_z"});
+  tpc_tracks_branch.AddField<float>("chi2");
+  tpc_tracks_branch.AddField<float>("tof_mass2");
+  tpc_tracks_branch.AddField<float>("tof_flag");
+  tpc_tracks_branch.AddField<float>("dedx");
+  tpc_tracks_branch.AddField<float>("pid_prob_pion");
+  tpc_tracks_branch.AddField<float>("pid_prob_kaon");
+  tpc_tracks_branch.AddField<float>("pid_prob_proton");
+
+  // tpc_tracks' additional field ids
+  const int inhits = tpc_tracks_branch.GetFieldId("nhits");
+  const int inhits_poss = tpc_tracks_branch.GetFieldId("nhits_poss");
+  const int icharge = tpc_tracks_branch.GetFieldId("charge");
+  const int idcax = tpc_tracks_branch.GetFieldId("dca_x");
+  const int idcay = tpc_tracks_branch.GetFieldId("dca_y");
+  const int idcaz = tpc_tracks_branch.GetFieldId("dca_z");
+  const int ichi2 = tpc_tracks_branch.GetFieldId("chi2");
+  const int itof_mass2 = tpc_tracks_branch.GetFieldId("tof_mass2");
+  const int itof_flag = tpc_tracks_branch.GetFieldId("tof_flag");
+  const int idedx = tpc_tracks_branch.GetFieldId("dedx");
+  const int ipid_prob_pion = tpc_tracks_branch.GetFieldId("pid_prob_pion");
+  const int ipid_prob_kaon = tpc_tracks_branch.GetFieldId("pid_prob_kaon");
+  const int ipid_prob_proton = tpc_tracks_branch.GetFieldId("pid_prob_proton");
+
+  out_config->AddBranchConfig(std::move(tpc_tracks_branch));
+  AnalysisTree::TrackDetector *tpc_tracks = new AnalysisTree::TrackDetector( out_config->GetLastId() ); 
+  out_config->AddBranchConfig(std::move(fhcal_branch));
+  AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( out_config->GetLastId() );
 
   // Create branches in the output tree
-  std::string str_fhcal_branch = "FHCalModules";
-  //AnalysisTree::BranchConfig fhcal_branch(str_fhcal_branch.c_str(), AnalysisTree::DetType::kModule); 
-  //out_config->AddBranchConfig(std::move(fhcal_branch));
-  outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector", &fhcal_modules);
+  outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 128000, 99);
+  outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 256000, 99);
+
+  std::cout << "\nAnalysisTree configuration:" << std::endl;
+  std::cout << Form("%20s : Id = %2i",   str_tpc_tracks_branch.c_str(), tpc_tracks->GetId()   ) << std::endl;
+
+  std::cout << "\tAdditional fields:" << std::endl;
+  std::cout << "\t\tNhits     :" << inhits << std::endl;
+  std::cout << "\t\tNhitsPoss :" << inhits_poss << std::endl;
+  std::cout << "\t\tCharge    :" << icharge << std::endl;
+  std::cout << "\t\tDCAx      :" << idcax << std::endl;
+  std::cout << "\t\tDCAy      :" << idcay << std::endl;
+  std::cout << "\t\tDCAz      :" << idcaz << std::endl;
+  std::cout << "\t\tChi2      :" << ichi2 << std::endl;
+  std::cout << "\t\tTOF_Mass2 :" << itof_mass2 << std::endl;
+  std::cout << "\t\tTOF_Flag  :" << itof_flag << std::endl;
+  std::cout << "\t\tTPC_dEdx  :" << idedx << std::endl;
+  std::cout << "\t\tPID_Pion  :" << ipid_prob_pion << std::endl;
+  std::cout << "\t\tPID_Kaon  :" << ipid_prob_kaon << std::endl;
+  std::cout << "\t\tPID_Proton:" << ipid_prob_proton << std::endl;
+
+  std::cout << Form("%20s : Id = %2i\n", str_fhcal_branch.c_str(),      fhcal_modules->GetId()) << std::endl;
+
 
   // Starting event loop
   TVector3 primaryVertex;
@@ -145,8 +203,9 @@ int main(int argc, char **argv)
   Float_t FHCalSumEnergy[Num_Of_Modules];
   Int_t   FHCalNumOfHits[Num_Of_Modules];
   Int_t n_entries = dstTree->GetEntriesFast();
-  Bool_t isGoodPID;
-  Short_t charge_mpd;
+
+  bool isGoodPID;
+  int charge;
 
   for (int iEv = 0; iEv < n_entries; iEv++)
   {
@@ -160,6 +219,9 @@ int main(int argc, char **argv)
       FHCalSumEnergy[i] = 0.;
       FHCalNumOfHits[i] = 0;
     }
+
+    tpc_tracks->ClearChannels();
+    fhcal_modules->ClearChannels();
 
     // Read energy in FHCal modules 
     fhcal_modules->Reserve(Num_Of_Modules);
@@ -186,6 +248,61 @@ int main(int argc, char **argv)
       module.SetSignal(FHCalSumEnergy[imodule]); // Total energy from hits in the module
       //if (iEv == 0) std::cout << "Module iD: " << imodule << ": Energy loss recorded in a tree = " << module.GetSignal() << std::endl; 
     }
+
+    // Reading Reco Tracks
+    MpdGlobalTracks = (TClonesArray*)MPDEvent->GetGlobalTracks();
+    Int_t Num_of_tpc_tracks = MpdGlobalTracks->GetEntriesFast();
+    tpc_tracks->Reserve(Num_of_tpc_tracks);
+
+
+    for (int itrack=0; itrack<Num_of_tpc_tracks; itrack++)
+    {
+      MpdTrack* mpdtrack = (MpdTrack*) MpdGlobalTracks->UncheckedAt(itrack);
+      UsedMCTracks.insert(mpdtrack->GetID());
+      auto *track = tpc_tracks->AddChannel();
+      track->Init(out_config->GetBranchConfig(tpc_tracks->GetId()));
+
+      track->SetMomentum(mpdtrack->GetPx(),mpdtrack->GetPy(),mpdtrack->GetPz());
+      track->SetField(int(mpdtrack->GetNofHits()), inhits);
+      track->SetField(int(mpdtrack->GetNofHitsPossTpc()), inhits_poss);
+      track->SetField(float(mpdtrack->GetTofMass2()), itof_mass2);
+      track->SetField(float(mpdtrack->GetTofFlag()), itof_flag);
+      track->SetField(float(mpdtrack->GetdEdXTPC()), idedx);
+      track->SetField(float(mpdtrack->GetChi2()), ichi2);
+      track->SetField(float(mpdtrack->GetDCAX()), idcax);
+      track->SetField(float(mpdtrack->GetDCAY()), idcay);
+      track->SetField(float(mpdtrack->GetDCAZ()), idcaz);
+      charge = (mpdtrack->GetPt() < 0) ? 1 : -1;
+      track->SetField(int(charge), icharge);
+
+      // PID
+      if (mpdtrack->GetTofFlag() == 2 || mpdtrack->GetTofFlag() == 6)
+      {
+        // TOF + TPC
+        isGoodPID = pid->FillProbs(TMath::Abs(mpdtrack->GetPt()) * TMath::CosH(mpdtrack->GetEta()),
+                                   mpdtrack->GetdEdXTPC(), mpdtrack->GetTofMass2(), charge);
+      }
+      else
+      {
+        // TPC only
+        isGoodPID = pid->FillProbs(TMath::Abs(mpdtrack->GetPt()) * TMath::CosH(mpdtrack->GetEta()),
+                                   mpdtrack->GetdEdXTPC(), charge);
+      }
+
+      if (isGoodPID)
+      {
+        track->SetField(float(pid->GetProbPi()), ipid_prob_pion);
+        track->SetField(float(pid->GetProbKa()), ipid_prob_kaon);
+        track->SetField(float(pid->GetProbPr()), ipid_prob_proton);
+      }
+      else
+      {
+        track->SetField(float(-999.), ipid_prob_pion);
+        track->SetField(float(-999.), ipid_prob_kaon);
+        track->SetField(float(-999.), ipid_prob_proton);
+      }
+
+    } // End of the tpc track loop
 
     outTree->Fill();
   } // End of the event loop

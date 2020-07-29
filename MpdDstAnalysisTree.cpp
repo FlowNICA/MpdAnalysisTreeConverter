@@ -1,7 +1,7 @@
 // Standard c++ headers
 #include <iostream>
 #include <string>
-#include <utility>
+//#include <utility>
 #include <set>
 #include <map>
 
@@ -143,6 +143,7 @@ int main(int argc, char **argv)
   std::set <Int_t> UsedMCTracks;
   std::map <Int_t,Int_t> InitMcNewMcId; // map[old-mc-id] = new-mc-id
   Float_t FHCalSumEnergy[Num_Of_Modules];
+  Int_t   FHCalNumOfHits[Num_Of_Modules];
   Int_t n_entries = dstTree->GetEntriesFast();
   Bool_t isGoodPID;
   Short_t charge_mpd;
@@ -157,6 +158,7 @@ int main(int argc, char **argv)
     for (int i=0; i<Num_Of_Modules; i++)
     {
       FHCalSumEnergy[i] = 0.;
+      FHCalNumOfHits[i] = 0;
     }
 
     // Read energy in FHCal modules 
@@ -174,22 +176,15 @@ int main(int argc, char **argv)
       Int_t ModId = FHCalHit->GetModuleID()-1;
       Int_t ModNumber = ModId + (Num_Of_Modules/2) * (DetId-1);
 
-      //auto& module = fhcal_modules->GetChannel(ModNumber);
-      //module.SetNumber(ihit+1);
-      //module.SetSignal(FHCalHit->GetELoss()); 
       FHCalSumEnergy[ModNumber] += FHCalHit->GetELoss();
+      FHCalNumOfHits[ModNumber]++;
     }
-    for (int imodule=0; imodule<Num_Of_Modules; imodule++)
-    {
-      if (iEv == 0) std::cout << "Module iD: " << imodule << ": Collected energy loss = " << FHCalSumEnergy[imodule] << std::endl; 
-    }
-
     for (int imodule=0; imodule<Num_Of_Modules; imodule++)
     {
       auto& module = fhcal_modules->GetChannel(imodule);
-      module.SetNumber(imodule);
-      module.SetSignal(FHCalSumEnergy[imodule]);
-      if (iEv == 0) std::cout << "Module iD: " << imodule << ": Energy loss recorded in a tree = " << module.GetSignal() << std::endl; 
+      module.SetNumber(FHCalNumOfHits[imodule]); // Number of hits that got in the module
+      module.SetSignal(FHCalSumEnergy[imodule]); // Total energy from hits in the module
+      //if (iEv == 0) std::cout << "Module iD: " << imodule << ": Energy loss recorded in a tree = " << module.GetSignal() << std::endl; 
     }
 
     outTree->Fill();

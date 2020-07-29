@@ -30,8 +30,8 @@
 #include "MpdVertex.h"
 
 // AnalysisTree headers
-#include "Configuration.hpp"
-#include "Detector.hpp"
+#include "AnalysisTree/Configuration.hpp"
+#include "AnalysisTree/Detector.hpp"
 
 int main(int argc, char **argv)
 {
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 
   // Starting event loop
   TVector3 primaryVertex;
-  std::set <Int_t> UsedMCTracks;
+  std::set <Int_t> UsedMCTracks;        // using to remap mc-reco track matching
   std::map <Int_t,Int_t> InitMcNewMcId; // map[old-mc-id] = new-mc-id
   Float_t FHCalSumEnergy[Num_Of_Modules];
   Int_t   FHCalNumOfHits[Num_Of_Modules];

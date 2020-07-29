@@ -33,13 +33,6 @@ add_definitions(${ROOT_CXX_FLAGS})
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -g")
-set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${ROOT_INLCUDE_DIRS}
-  $ENV{ANALYSISTREE_INC}
-)
-
-include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
 
 if(NOT DEFINED ENV{VMCWORKDIR})
   message(FATAL_ERROR "MpdRoot environment is NOT found. Skip corresponding step.")
@@ -47,7 +40,11 @@ endif()
 
 set(MPDROOTDIR $ENV{VMCWORKDIR})
 message(STATUS "MpdRoot environment is found: ${MPDROOTDIR}")
+
 set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${ROOT_INLCUDE_DIRS}
+  $ENV{ANALYSISTREE_INC}
   ${FAIRROOT_INCLUDE_DIR}
   ${MPDROOTDIR}/tpc
   ${MPDROOTDIR}/kalman
@@ -64,7 +61,10 @@ set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
   ${MPDROOTDIR}/mpdbase
   ${MPDROOTDIR}/mpdpid
 )
-#---Add Needed libraries
+
+include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
+
+#---Add Needed MpdRoot/FairRoot libraries
 find_library(BASE NAMES Base PATHS ${FAIRROOT_LIBRARY_DIR})
 find_library(MCSTACK NAMES MCStack PATHS $ENV{FAIRLIBDIR})
 if (MCSTACK)
@@ -116,5 +116,5 @@ endif()
 
 #---Compile converter's executable file
 add_executable(MpdDst2AnalysisTree "${CMAKE_CURRENT_SOURCE_DIR}/MpdDstAnalysisTree.cpp")
-target_include_directories(MpdDst2AnalysisTree PUBLIC ${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
+#target_include_directories(MpdDst2AnalysisTree PUBLIC ${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
 target_link_libraries(MpdDst2AnalysisTree ${MPD_AT_CONVERTER_INCLUDE_LIBRARIES})

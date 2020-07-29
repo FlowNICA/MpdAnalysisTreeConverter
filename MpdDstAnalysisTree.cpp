@@ -1,7 +1,7 @@
 // Standard c++ headers
 #include <iostream>
 #include <string>
-//#include <utility>
+#include <utility>
 #include <set>
 #include <map>
 
@@ -32,6 +32,9 @@
 // AnalysisTree headers
 #include "AnalysisTree/Configuration.hpp"
 #include "AnalysisTree/Detector.hpp"
+#include "AnalysisTree/Module.hpp"
+#include "AnalysisTree/Track.hpp"
+#include "AnalysisTree/Particle.hpp"
 #include "AnalysisTree/Matching.hpp"
 
 int main(int argc, char **argv)
@@ -67,7 +70,7 @@ int main(int argc, char **argv)
       {
         oFileName = argv[++i];
         continue;
-      }
+       }
       if (std::string(argv[i]) == "-o" && i == argc - 1)
       {
         std::cerr << "\n[ERROR]: Output file name was not specified " << std::endl;
@@ -135,9 +138,11 @@ int main(int argc, char **argv)
   // Set up AnalysisTree configuration
   std::string str_tpc_tracks_branch = "TpcTracks.";
   std::string str_fhcal_branch = "FHCalModules.";
+  std::string str_mc_tracks_branch = "McTracks.";
 
   AnalysisTree::BranchConfig fhcal_branch(str_fhcal_branch.c_str(), AnalysisTree::DetType::kModule); 
   AnalysisTree::BranchConfig tpc_tracks_branch(str_tpc_tracks_branch.c_str(), AnalysisTree::DetType::kTrack); 
+  AnalysisTree::BranchConfig mc_tracks_branch(str_mc_tracks_branch.c_str(), AnalysisTree::DetType::kParticle); 
 
   tpc_tracks_branch.AddField<int>("nhits");
   tpc_tracks_branch.AddField<int>("nhits_poss");
@@ -150,6 +155,8 @@ int main(int argc, char **argv)
   tpc_tracks_branch.AddField<float>("pid_prob_pion");
   tpc_tracks_branch.AddField<float>("pid_prob_kaon");
   tpc_tracks_branch.AddField<float>("pid_prob_proton");
+
+  mc_tracks_branch.AddField<int>("mother_id");
 
   // tpc_tracks' additional field ids
   const int inhits = tpc_tracks_branch.GetFieldId("nhits");
@@ -166,18 +173,25 @@ int main(int argc, char **argv)
   const int ipid_prob_kaon = tpc_tracks_branch.GetFieldId("pid_prob_kaon");
   const int ipid_prob_proton = tpc_tracks_branch.GetFieldId("pid_prob_proton");
 
+  // mc_tracks' additional field ids
+  const int imother_id = mc_tracks_branch.GetFieldId("mother_id");
+
+  // Initialize AnalysisTree Dst components
   out_config->AddBranchConfig(std::move(tpc_tracks_branch));
   AnalysisTree::TrackDetector *tpc_tracks = new AnalysisTree::TrackDetector( out_config->GetLastId() ); 
   out_config->AddBranchConfig(std::move(fhcal_branch));
   AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( out_config->GetLastId() );
+  out_config->AddBranchConfig(std::move(mc_tracks_branch));
+  AnalysisTree::Particles *mc_tracks = new AnalysisTree::Particles( out_config->GetLastId() ); 
 
   // Create branches in the output tree
-  outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 128000, 99);
-  outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 256000, 99);
+  outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 256000, 99);
+  outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 128000, 99);
+  outTree->Branch(str_mc_tracks_branch.c_str(), "AnalysisTree::Particles",  &mc_tracks, 256000, 99);
 
+  // Printout basic configuration info
   std::cout << "\nAnalysisTree configuration:" << std::endl;
-  std::cout << Form("%20s : Id = %2i",   str_tpc_tracks_branch.c_str(), tpc_tracks->GetId()   ) << std::endl;
-
+  std::cout << Form("%15s : Id = %2i",   str_tpc_tracks_branch.c_str(), tpc_tracks->GetId()   ) << std::endl;
   std::cout << "\tAdditional fields:" << std::endl;
   std::cout << "\t\tNhits     :" << inhits << std::endl;
   std::cout << "\t\tNhitsPoss :" << inhits_poss << std::endl;
@@ -192,9 +206,11 @@ int main(int argc, char **argv)
   std::cout << "\t\tPID_Pion  :" << ipid_prob_pion << std::endl;
   std::cout << "\t\tPID_Kaon  :" << ipid_prob_kaon << std::endl;
   std::cout << "\t\tPID_Proton:" << ipid_prob_proton << std::endl;
-
-  std::cout << Form("%20s : Id = %2i\n", str_fhcal_branch.c_str(),      fhcal_modules->GetId()) << std::endl;
-
+  std::cout << Form("%15s : Id = %2i", str_fhcal_branch.c_str(),      fhcal_modules->GetId()) << std::endl;
+  std::cout << Form("%15s : Id = %2i",   str_mc_tracks_branch.c_str(), mc_tracks->GetId()   ) << std::endl;
+  std::cout << "\tAdditional fields:" << std::endl;
+  std::cout << "\t\tMother_Id :" << imother_id << std::endl;
+  std::cout << std::endl;
 
   // Starting event loop
   TVector3 primaryVertex;
@@ -222,6 +238,7 @@ int main(int argc, char **argv)
 
     tpc_tracks->ClearChannels();
     fhcal_modules->ClearChannels();
+    mc_tracks->ClearChannels();
 
     // Read energy in FHCal modules 
     fhcal_modules->Reserve(Num_Of_Modules);
@@ -253,7 +270,6 @@ int main(int argc, char **argv)
     MpdGlobalTracks = (TClonesArray*)MPDEvent->GetGlobalTracks();
     Int_t Num_of_tpc_tracks = MpdGlobalTracks->GetEntriesFast();
     tpc_tracks->Reserve(Num_of_tpc_tracks);
-
 
     for (int itrack=0; itrack<Num_of_tpc_tracks; itrack++)
     {
@@ -301,8 +317,36 @@ int main(int argc, char **argv)
         track->SetField(float(-999.), ipid_prob_kaon);
         track->SetField(float(-999.), ipid_prob_proton);
       }
-
     } // End of the tpc track loop
+
+    // Read Mc tracks
+    Int_t Num_of_mc_tracks = MCTracks->GetEntriesFast();
+    mc_tracks->Reserve(Num_of_mc_tracks);
+
+    for (int imctrack=0; imctrack<Num_of_mc_tracks; imctrack++)
+    {
+#ifdef _MCSTACK_
+      FairMCTrack *mctrack = (FairMCTrack*) MCTracks->UncheckedAt(imctrack);
+#endif
+#ifdef _MPDMCSTACK_
+      MpdMCTrack *mctrack = (MpdMCTrack*) MCTracks->UncheckedAt(imctrack);
+#endif
+      bool isUsed = (UsedMCTracks.count(imctrack));
+
+      // If motherId != 1 and mc track doesn't relate to any reco track - skip
+      if (mctrack->GetMotherId() != -1 && !isUsed) continue;
+
+      auto *track = mc_tracks->AddChannel();
+      track->Init(out_config->GetBranchConfig(mc_tracks->GetId()));
+
+      // Collect new Mc Ids
+      InitMcNewMcId[imctrack] = track->GetId();
+
+      track->SetMomentum(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPx());
+      track->SetPid(int(mctrack->GetPdgCode()));
+      track->SetMass(float(mctrack->GetMass()));
+      track->SetField(int(mctrack->GetMotherId()), imother_id);
+    } // End of the mc track loop
 
     outTree->Fill();
   } // End of the event loop

@@ -354,7 +354,7 @@ int main(int argc, char **argv)
       // Collect new Mc Ids
       InitMcNewMcId[imctrack] = track->GetId();
 
-      track->SetMomentum(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPx());
+      track->SetMomentum(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPz());
       track->SetPid(int(mctrack->GetPdgCode()));
       track->SetMass(float(mctrack->GetMass()));
       track->SetField(int(mctrack->GetMotherId()), imother_id);

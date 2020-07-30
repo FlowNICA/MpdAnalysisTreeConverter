@@ -31,23 +31,31 @@
 
 // AnalysisTree headers
 #include "AnalysisTree/Configuration.hpp"
+#include "AnalysisTree/DataHeader.hpp"
 #include "AnalysisTree/EventHeader.hpp"
 #include "AnalysisTree/Detector.hpp"
 #include "AnalysisTree/Matching.hpp"
 
+float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938);
+
 int main(int argc, char **argv)
 {
   TString iFileName, oFileName;
+  std::string system="";
+  float sqrtSnn = -1.;
+  bool isDataHeaderDefined = false;
 
   if (argc < 5)
   {
-    std::cerr << "./MpdDst2AnalysisTree -i inputfile -o outputfile" << std::endl;
+    std::cerr << "./MpdDst2AnalysisTree -i inputfile -o outputfile [OPTIONAL: --sqrtSnn sqrtSnn --system colliding_system_name]" << std::endl;
     return 1;
   }
   for (int i = 1; i < argc; i++)
   {
     if (std::string(argv[i]) != "-i" &&
-      std::string(argv[i]) != "-o")
+      std::string(argv[i]) != "-o" &&
+      std::string(argv[i]) != "--sqrtSnn" &&
+      std::string(argv[i]) != "--system")
     {
       std::cerr << "\n[ERROR]: Unknown parameter " << i << ": " << argv[i] << std::endl;
       return 1;
@@ -70,6 +78,28 @@ int main(int argc, char **argv)
         continue;
        }
       if (std::string(argv[i]) == "-o" && i == argc - 1)
+      {
+        std::cerr << "\n[ERROR]: Output file name was not specified " << std::endl;
+        return 1;
+      }
+      if (std::string(argv[i]) == "--system" && i != argc - 1)
+      {
+        system = std::string(argv[++i]);
+        isDataHeaderDefined = true;
+        continue;
+       }
+      if (std::string(argv[i]) == "--system" && i == argc - 1)
+      {
+        std::cerr << "\n[ERROR]: Output file name was not specified " << std::endl;
+        return 1;
+      }
+      if (std::string(argv[i]) == "--sqrtSnn" && i != argc - 1)
+      {
+        sqrtSnn = std::stof(std::string(argv[++i]));
+        isDataHeaderDefined = true;
+        continue;
+       }
+      if (std::string(argv[i]) == "--sqrtSnn" && i == argc - 1)
       {
         std::cerr << "\n[ERROR]: Output file name was not specified " << std::endl;
         return 1;
@@ -129,6 +159,11 @@ int main(int argc, char **argv)
   // Set up output dst
   TFile *outFile = new TFile(oFileName.Data(), "RECREATE");
   TTree *outTree = new TTree("aTree","AnalysisTree Dst at MPD");
+
+  // Set up AnalysisTree data header
+  AnalysisTree::DataHeader *dataHeader = new AnalysisTree::DataHeader;
+  if (system != "") dataHeader->SetSystem(system);
+  if (sqrtSnn > 0) dataHeader->SetBeamMomentum(get_beamP(sqrtSnn));
 
   // Set up AnalysisTree configureation
   AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
@@ -375,6 +410,7 @@ int main(int argc, char **argv)
   outFile->cd();
   outTree->Print();
   outTree->Write();
+  if (isDataHeaderDefined) dataHeader->Write("DataHeader");
   out_config->Write("Configuration");
   outFile->Close();
 
@@ -382,4 +418,10 @@ int main(int argc, char **argv)
   timer.Print();
 
   return 0;
+}
+
+
+float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938)
+{
+  return sqrt( pow((pow(sqrtSnn,2) - pow(m_target,2) - pow(m_beam,2))/(2*m_target), 2) - pow(m_beam,2) );
 }

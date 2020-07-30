@@ -375,7 +375,7 @@ int main(int argc, char **argv)
   outFile->cd();
   outTree->Print();
   outTree->Write();
-  out_config->Write();
+  out_config->Write("Configuration");
   outFile->Close();
 
   timer.Stop();

@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
   // Set up output dst
   TFile *outFile = new TFile(oFileName.Data(), "RECREATE");
-  TTree *outTree = new TTree("mpd_analysistree","AnalysisTree Dst at MPD");
+  TTree *outTree = new TTree("aTree","AnalysisTree Dst at MPD");
 
   // Set up AnalysisTree configureation
   AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
@@ -209,7 +209,8 @@ int main(int argc, char **argv)
   outTree->Branch(str_tpc2mc_tracks_branch.c_str(), "AnalysisTree::Matching", &tpc2mc_tracks, 32000, 99);
 
   // Printout basic configuration info
-  std::cout << "\nAnalysisTree configuration:" << std::endl;
+  out_config->Print();
+  /*std::cout << "\nAnalysisTree configuration:" << std::endl;
   std::cout << Form("%15s : Id = %2i",   str_reco_event_branch.c_str(), reco_event->GetId()   ) << std::endl;
   std::cout << Form("%15s : Id = %2i",   str_mc_event_branch.c_str(), mc_event->GetId()   ) << std::endl;
   std::cout << "\tAdditional fields:" << std::endl;
@@ -235,7 +236,7 @@ int main(int argc, char **argv)
   std::cout << "\tAdditional fields:" << std::endl;
   std::cout << "\t\tMother_Id :" << imother_id << std::endl;
   std::cout << Form("%30s", str_tpc2mc_tracks_branch.c_str()) << std::endl;
-  std::cout << std::endl;
+  std::cout << std::endl;*/
 
   // Starting event loop
   TVector3 primaryVertex;
@@ -402,6 +403,7 @@ int main(int argc, char **argv)
   outFile->cd();
   outTree->Print();
   outTree->Write();
+  out_config->Write();
   outFile->Close();
 
   timer.Stop();

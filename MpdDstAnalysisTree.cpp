@@ -210,33 +210,6 @@ int main(int argc, char **argv)
 
   // Printout basic configuration info
   out_config->Print();
-  /*std::cout << "\nAnalysisTree configuration:" << std::endl;
-  std::cout << Form("%15s : Id = %2i",   str_reco_event_branch.c_str(), reco_event->GetId()   ) << std::endl;
-  std::cout << Form("%15s : Id = %2i",   str_mc_event_branch.c_str(), mc_event->GetId()   ) << std::endl;
-  std::cout << "\tAdditional fields:" << std::endl;
-  std::cout << "\t\tB         :" << iB << std::endl;
-  std::cout << "\t\tPhiRp     :" << iPhiRp << std::endl;
-  std::cout << Form("%15s : Id = %2i",   str_tpc_tracks_branch.c_str(), tpc_tracks->GetId()   ) << std::endl;
-  std::cout << "\tAdditional fields:" << std::endl;
-  std::cout << "\t\tNhits     :" << inhits << std::endl;
-  std::cout << "\t\tNhitsPoss :" << inhits_poss << std::endl;
-  std::cout << "\t\tCharge    :" << icharge << std::endl;
-  std::cout << "\t\tDCAx      :" << idcax << std::endl;
-  std::cout << "\t\tDCAy      :" << idcay << std::endl;
-  std::cout << "\t\tDCAz      :" << idcaz << std::endl;
-  std::cout << "\t\tChi2      :" << ichi2 << std::endl;
-  std::cout << "\t\tTOF_Mass2 :" << itof_mass2 << std::endl;
-  std::cout << "\t\tTOF_Flag  :" << itof_flag << std::endl;
-  std::cout << "\t\tTPC_dEdx  :" << idedx << std::endl;
-  std::cout << "\t\tPID_Pion  :" << ipid_prob_pion << std::endl;
-  std::cout << "\t\tPID_Kaon  :" << ipid_prob_kaon << std::endl;
-  std::cout << "\t\tPID_Proton:" << ipid_prob_proton << std::endl;
-  std::cout << Form("%15s : Id = %2i", str_fhcal_branch.c_str(),      fhcal_modules->GetId()) << std::endl;
-  std::cout << Form("%15s : Id = %2i",   str_mc_tracks_branch.c_str(), mc_tracks->GetId()   ) << std::endl;
-  std::cout << "\tAdditional fields:" << std::endl;
-  std::cout << "\t\tMother_Id :" << imother_id << std::endl;
-  std::cout << Form("%30s", str_tpc2mc_tracks_branch.c_str()) << std::endl;
-  std::cout << std::endl;*/
 
   // Starting event loop
   TVector3 primaryVertex;
@@ -303,7 +276,6 @@ int main(int argc, char **argv)
       auto& module = fhcal_modules->GetChannel(imodule);
       module.SetNumber(FHCalNumOfHits[imodule]); // Number of hits that got in the module
       module.SetSignal(FHCalSumEnergy[imodule]); // Total energy from hits in the module
-      //if (iEv == 0) std::cout << "Module iD: " << imodule << ": Energy loss recorded in a tree = " << module.GetSignal() << std::endl; 
     }
 
     // Reading Reco Tracks

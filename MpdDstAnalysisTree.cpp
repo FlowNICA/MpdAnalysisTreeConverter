@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 }
 
 
-float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938)
+float get_beamP(float sqrtSnn, float m_target, float m_beam)
 {
   return sqrt( pow((pow(sqrtSnn,2) - pow(m_target,2) - pow(m_beam,2))/(2*m_target), 2) - pow(m_beam,2) );
 }

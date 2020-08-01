@@ -13,6 +13,7 @@
 #include <TStopwatch.h>
 #include <TClonesArray.h>
 #include <TObject.h>
+#include <TMath.h>
 
 // FairRoot/MpdRoot headers
 #include "FairMCEventHeader.h"
@@ -37,6 +38,7 @@
 #include "AnalysisTree/Matching.hpp"
 
 float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938);
+float GetFHCalPhi(int iModule);
 
 int main(int argc, char **argv)
 {
@@ -197,11 +199,16 @@ int main(int argc, char **argv)
   tpc_tracks_branch.AddField<float>("pid_prob_kaon");
   tpc_tracks_branch.AddField<float>("pid_prob_proton");
 
+  fhcal_branch.AddField<float>("phi");
+
   mc_tracks_branch.AddField<int>("mother_id");
 
   // mc_event's additional field ids
   const int iB = mc_event_branch.GetFieldId("B");
   const int iPhiRp = mc_event_branch.GetFieldId("PhiRp");
+
+  // fhcal_modules' additional field ids
+  const int ifhcalphi = fhcal_branch.GetFieldId("phi");
 
   // tpc_tracks' additional field ids
   const int inhits = tpc_tracks_branch.GetFieldId("nhits");
@@ -293,6 +300,7 @@ int main(int argc, char **argv)
     for (int imodule=0; imodule<Num_Of_Modules; imodule++)
     {
       auto *module = fhcal_modules->AddChannel();
+      module->Init(out_config->GetBranchConfig(fhcal_modules->GetId()));
       module->SetSignal(0.f);
     }
     Int_t number_of_FHCal_hits = FHCalHits->GetEntriesFast();
@@ -311,6 +319,7 @@ int main(int argc, char **argv)
       auto& module = fhcal_modules->GetChannel(imodule);
       module.SetNumber(FHCalNumOfHits[imodule]); // Number of hits that got in the module
       module.SetSignal(FHCalSumEnergy[imodule]); // Total energy from hits in the module
+      module.SetField(float(GetFHCalPhi(imodule)), ifhcalphi);
     }
 
     // Reading Reco Tracks
@@ -424,4 +433,31 @@ int main(int argc, char **argv)
 float get_beamP(float sqrtSnn, float m_target, float m_beam)
 {
   return sqrt( pow((pow(sqrtSnn,2) - pow(m_target,2) - pow(m_beam,2))/(2*m_target), 2) - pow(m_beam,2) );
+}
+
+float GetFHCalPhi(int iModule)
+{
+  const int Nmodules = 45;
+  int xAxisSwitch = (iModule < Nmodules) ? 1 : -1;
+  int module = (iModule < Nmodules) ? iModule : iModule - Nmodules;
+  float x, y, phi = -999.;
+  if (module >= 0 && module <= 4)
+  {
+    y = 45.;
+    x = (module - 2) * 15.;
+    phi = TMath::ATan2(y, x * xAxisSwitch);
+  }
+  else if ((module >= 5) && (module <= 39))
+  {
+    y = (3 - (module + 2) / 7) * 15.;
+    x = (3 - (module + 2) % 7) * 15.;
+    phi = TMath::ATan2(y, x * xAxisSwitch);
+  }
+  else if ((module >= 40) && (module <= 44))
+  {
+    y = -45.;
+    x = (module - 42) * 15.;
+    phi = TMath::ATan2(y, x * xAxisSwitch);
+  }
+  return phi;
 }

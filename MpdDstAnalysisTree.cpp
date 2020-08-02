@@ -39,6 +39,7 @@
 
 float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938);
 float GetFHCalPhi(int iModule);
+TVector3 GetFHCalPos(int iModule);
 
 int main(int argc, char **argv)
 {
@@ -166,6 +167,14 @@ int main(int argc, char **argv)
   AnalysisTree::DataHeader *dataHeader = new AnalysisTree::DataHeader;
   if (system != "") dataHeader->SetSystem(system);
   if (sqrtSnn > 0) dataHeader->SetBeamMomentum(get_beamP(sqrtSnn));
+  auto &fhcal_mod_pos = dataHeader->AddDetector();
+  TVector3 modulePos;
+  for (int imodule=0; imodule<Num_Of_Modules; imodule++)
+  {
+    auto *module = fhcal_mod_pos.AddChannel();
+    modulePos = GetFHCalPos(imodule);
+    module->SetPosition(modulePos);
+  }
 
   // Set up AnalysisTree configureation
   AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
@@ -460,4 +469,31 @@ float GetFHCalPhi(int iModule)
     phi = TMath::ATan2(y, x * xAxisSwitch);
   }
   return phi;
+}
+
+TVector3 GetFHCalPos(int iModule)
+{
+  const int Nmodules = 45;
+  int xAxisSwitch = (iModule < Nmodules) ? 1 : -1;
+  int module = (iModule < Nmodules) ? iModule : iModule - Nmodules;
+  float x, y, z;
+  z = (iModule < Nmodules) ? -320. : 320.;
+  if (module >= 0 && module <= 4)
+  {
+    y = 45.;
+    x = (module - 2) * 15.;
+  }
+  else if ((module >= 5) && (module <= 39))
+  {
+    y = (3 - (module + 2) / 7) * 15.;
+    x = (3 - (module + 2) % 7) * 15.;
+  }
+  else if ((module >= 40) && (module <= 44))
+  {
+    y = -45.;
+    x = (module - 42) * 15.;
+  }
+  TVector3 vec(x * xAxisSwitch, y, z);
+
+  return vec;
 }

@@ -4,6 +4,7 @@
 #include <utility>
 #include <set>
 #include <map>
+#include <functional>
 
 // Standard ROOT headers
 #include <Rtypes.h>
@@ -212,44 +213,58 @@ int main(int argc, char **argv)
 
   mc_tracks_branch.AddField<int>("mother_id");
 
-  // mc_event's additional field ids
-  const int iB = mc_event_branch.GetFieldId("B");
-  const int iPhiRp = mc_event_branch.GetFieldId("PhiRp");
-
-  // fhcal_modules' additional field ids
-  const int ifhcalphi = fhcal_branch.GetFieldId("phi");
-
-  // tpc_tracks' additional field ids
-  const int inhits = tpc_tracks_branch.GetFieldId("nhits");
-  const int inhits_poss = tpc_tracks_branch.GetFieldId("nhits_poss");
-  const int icharge = tpc_tracks_branch.GetFieldId("charge");
-  const int idcax = tpc_tracks_branch.GetFieldId("dca_x");
-  const int idcay = tpc_tracks_branch.GetFieldId("dca_y");
-  const int idcaz = tpc_tracks_branch.GetFieldId("dca_z");
-  const int ichi2 = tpc_tracks_branch.GetFieldId("chi2");
-  const int itof_mass2 = tpc_tracks_branch.GetFieldId("tof_mass2");
-  const int itof_flag = tpc_tracks_branch.GetFieldId("tof_flag");
-  const int idedx = tpc_tracks_branch.GetFieldId("dedx");
-  const int ipid_prob_pion = tpc_tracks_branch.GetFieldId("pid_prob_pion");
-  const int ipid_prob_kaon = tpc_tracks_branch.GetFieldId("pid_prob_kaon");
-  const int ipid_prob_proton = tpc_tracks_branch.GetFieldId("pid_prob_proton");
-
-  // mc_tracks' additional field ids
-  const int imother_id = mc_tracks_branch.GetFieldId("mother_id");
+  auto hasher = std::hash<std::string>();
 
   // Initialize AnalysisTree Dst components
-  out_config->AddBranchConfig(std::move(reco_event_branch));
-  AnalysisTree::EventHeader *reco_event = new AnalysisTree::EventHeader( out_config->GetLastId() );
-  out_config->AddBranchConfig(std::move(mc_event_branch));
-  AnalysisTree::EventHeader *mc_event = new AnalysisTree::EventHeader( out_config->GetLastId() );
-  out_config->AddBranchConfig(std::move(tpc_tracks_branch));
-  AnalysisTree::TrackDetector *tpc_tracks = new AnalysisTree::TrackDetector( out_config->GetLastId() ); 
-  out_config->AddBranchConfig(std::move(fhcal_branch));
-  AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( out_config->GetLastId() );
-  out_config->AddBranchConfig(std::move(mc_tracks_branch));
-  AnalysisTree::Particles *mc_tracks = new AnalysisTree::Particles( out_config->GetLastId() ); 
+  out_config->AddBranchConfig(reco_event_branch);
+  AnalysisTree::EventHeader *reco_event = new AnalysisTree::EventHeader( Short_t(hasher(reco_event_branch.GetName())) );
+  out_config->AddBranchConfig(mc_event_branch);
+  AnalysisTree::EventHeader *mc_event = new AnalysisTree::EventHeader( Short_t(hasher(mc_event_branch.GetName())) );
+  out_config->AddBranchConfig(tpc_tracks_branch);
+  AnalysisTree::TrackDetector *tpc_tracks = new AnalysisTree::TrackDetector( Short_t(hasher(tpc_tracks_branch.GetName())) ); 
+  out_config->AddBranchConfig(fhcal_branch);
+  AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( Short_t(hasher(fhcal_branch.GetName())) );
+  out_config->AddBranchConfig(mc_tracks_branch);
+  AnalysisTree::Particles *mc_tracks = new AnalysisTree::Particles( Short_t(hasher(mc_tracks_branch.GetName())) ); 
   //AnalysisTree::Matching *tpc2mc_tracks = new AnalysisTree::Matching(out_config->GetBranchConfig(str_tpc_tracks_branch).GetId(), out_config->GetBranchConfig(str_mc_tracks_branch).GetId());
   //out_config->AddMatch(str_tpc_tracks_branch, str_mc_tracks_branch, str_tpc2mc_tracks_branch);
+
+  reco_event->Init(reco_event_branch);
+  mc_event->Init(mc_event_branch);
+
+    /* Correct branch id-s inside Configuration */
+  for (const auto& branch_config : out_config->GetBranchConfigs()) {
+    out_config->GetBranchConfig(branch_config.GetName()).SetId(Short_t(hasher(branch_config.GetName())));
+  }
+
+  // mc_event's additional field ids
+  const int mceventid = mc_event->GetId();
+  const int iB = out_config->GetBranchConfig(mceventid).GetFieldId("B");
+  const int iPhiRp = out_config->GetBranchConfig(mceventid).GetFieldId("PhiRp");
+
+  // fhcal_modules' additional field ids
+  const int fhcalid = fhcal_modules->GetId();
+  const int ifhcalphi = out_config->GetBranchConfig(fhcalid).GetFieldId("phi");
+
+  // tpc_tracks' additional field ids
+  const int tpctracksid = tpc_tracks->GetId();
+  const int inhits = out_config->GetBranchConfig(tpctracksid).GetFieldId("nhits");
+  const int inhits_poss = out_config->GetBranchConfig(tpctracksid).GetFieldId("nhits_poss");
+  const int icharge = out_config->GetBranchConfig(tpctracksid).GetFieldId("charge");
+  const int idcax = out_config->GetBranchConfig(tpctracksid).GetFieldId("dca_x");
+  const int idcay = out_config->GetBranchConfig(tpctracksid).GetFieldId("dca_y");
+  const int idcaz = out_config->GetBranchConfig(tpctracksid).GetFieldId("dca_z");
+  const int ichi2 = out_config->GetBranchConfig(tpctracksid).GetFieldId("chi2");
+  const int itof_mass2 = out_config->GetBranchConfig(tpctracksid).GetFieldId("tof_mass2");
+  const int itof_flag = out_config->GetBranchConfig(tpctracksid).GetFieldId("tof_flag");
+  const int idedx = out_config->GetBranchConfig(tpctracksid).GetFieldId("dedx");
+  const int ipid_prob_pion = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_pion");
+  const int ipid_prob_kaon = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_kaon");
+  const int ipid_prob_proton = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_proton");
+
+  // mc_tracks' additional field ids
+  const int mctracksid = mc_tracks->GetId();
+  const int imother_id = out_config->GetBranchConfig(mctracksid).GetFieldId("mother_id");
 
   // Create branches in the output tree
   outTree->Branch(str_reco_event_branch.c_str(), "AnalysisTree::EventHeader", &reco_event, 32000, 99);
@@ -297,18 +312,17 @@ int main(int argc, char **argv)
     reco_event->SetVertexPosition3(primaryVertex);
 
     // Read MC Event
-    mc_event->Init(out_config->GetBranchConfig(mc_event->GetId()));
     TVector3 vtx(MCHeader->GetX(),MCHeader->GetY(),MCHeader->GetZ());
     mc_event->SetVertexPosition3(vtx);
     mc_event->SetField(float(MCHeader->GetB()), iB);
     mc_event->SetField(float(MCHeader->GetRotZ()), iPhiRp);
 
     // Read energy in FHCal modules 
-    fhcal_modules->Reserve(Num_Of_Modules);
+   fhcal_modules->Reserve(Num_Of_Modules);
     for (int imodule=0; imodule<Num_Of_Modules; imodule++)
     {
       auto *module = fhcal_modules->AddChannel();
-      module->Init(out_config->GetBranchConfig(fhcal_modules->GetId()));
+      module->Init(out_config->GetBranchConfig(fhcalid));
       module->SetSignal(0.f);
     }
     Int_t number_of_FHCal_hits = FHCalHits->GetEntriesFast();
@@ -422,6 +436,7 @@ int main(int argc, char **argv)
     }
 
     outTree->Fill();
+  
   } // End of the event loop
   
   outFile->cd();

@@ -226,13 +226,13 @@ int main(int argc, char **argv)
   AnalysisTree::ModuleDetector *fhcal_modules = new AnalysisTree::ModuleDetector( Short_t(hasher(fhcal_branch.GetName())) );
   out_config->AddBranchConfig(mc_tracks_branch);
   AnalysisTree::Particles *mc_tracks = new AnalysisTree::Particles( Short_t(hasher(mc_tracks_branch.GetName())) ); 
-  //AnalysisTree::Matching *tpc2mc_tracks = new AnalysisTree::Matching(out_config->GetBranchConfig(str_tpc_tracks_branch).GetId(), out_config->GetBranchConfig(str_mc_tracks_branch).GetId());
-  //out_config->AddMatch(str_tpc_tracks_branch, str_mc_tracks_branch, str_tpc2mc_tracks_branch);
+  AnalysisTree::Matching *tpc2mc_tracks = new AnalysisTree::Matching(out_config->GetBranchConfig(str_tpc_tracks_branch).GetId(), out_config->GetBranchConfig(str_mc_tracks_branch).GetId());
+  out_config->AddMatch(tpc2mc_tracks);
 
   reco_event->Init(reco_event_branch);
   mc_event->Init(mc_event_branch);
 
-    /* Correct branch id-s inside Configuration */
+  /* Correct branch id-s inside Configuration */
   for (const auto& branch_config : out_config->GetBranchConfigs()) {
     out_config->GetBranchConfig(branch_config.GetName()).SetId(Short_t(hasher(branch_config.GetName())));
   }
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
   outTree->Branch(str_tpc_tracks_branch.c_str(), "AnalysisTree::TrackDetector", &tpc_tracks, 256000, 99);
   outTree->Branch(str_fhcal_branch.c_str(), "AnalysisTree::ModuleDetector",  &fhcal_modules, 128000, 99);
   outTree->Branch(str_mc_tracks_branch.c_str(), "AnalysisTree::Particles",  &mc_tracks, 256000, 99);
-  //outTree->Branch(str_tpc2mc_tracks_branch.c_str(), "AnalysisTree::Matching", &tpc2mc_tracks, 32000, 99);
+  outTree->Branch(str_tpc2mc_tracks_branch.c_str(), "AnalysisTree::Matching", &tpc2mc_tracks, 32000, 99);
 
   // Printout basic configuration info
   out_config->Print();
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
 
     UsedMCTracks.clear();
     InitMcNewMcId.clear();
-    //tpc2mc_tracks->Clear();
+    tpc2mc_tracks->Clear();
     for (int i=0; i<Num_Of_Modules; i++)
     {
       FHCalSumEnergy[i] = 0.;
@@ -432,7 +432,7 @@ int main(int argc, char **argv)
       MpdTrack* mpdtrack = (MpdTrack*) MpdGlobalTracks->UncheckedAt(itrack);
       const int tpc_track_id = itrack;
       const int mc_track_id  = InitMcNewMcId[mpdtrack->GetID()];
-      //tpc2mc_tracks->AddMatch(tpc_track_id, mc_track_id);
+      tpc2mc_tracks->AddMatch(tpc_track_id, mc_track_id);
     }
 
     outTree->Fill();

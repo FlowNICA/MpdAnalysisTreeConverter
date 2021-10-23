@@ -15,6 +15,8 @@
 #include <TClonesArray.h>
 #include <TObject.h>
 #include <TMath.h>
+#include <TDatabasePDG.h>
+#include <TParticlePDG.h>
 
 // FairRoot/MpdRoot headers
 #include "FairMCEventHeader.h"
@@ -41,6 +43,9 @@
 float get_beamP(float sqrtSnn, float m_target = 0.938, float m_beam = 0.938);
 float GetFHCalPhi(int iModule);
 TVector3 GetFHCalPos(int iModule);
+Bool_t IsCharged(Int_t pdg);
+Float_t GetRapidity(Float_t p, Float_t pz, Int_t pid_type);
+Float_t GetRapidityPDG(Float_t p, Float_t pz, Int_t pdg);
 
 int main(int argc, char **argv)
 {
@@ -181,11 +186,11 @@ int main(int argc, char **argv)
   AnalysisTree::Configuration *out_config = new AnalysisTree::Configuration;
 
   // Set up AnalysisTree configuration
-  std::string str_reco_event_branch = "RecoEvent.";
-  std::string str_mc_event_branch = "McEvent.";
-  std::string str_tpc_tracks_branch = "TpcTracks.";
-  std::string str_fhcal_branch = "FHCalModules.";
-  std::string str_mc_tracks_branch = "McTracks.";
+  std::string str_reco_event_branch = "RecoEvent";
+  std::string str_mc_event_branch = "McEvent";
+  std::string str_tpc_tracks_branch = "TpcTracks";
+  std::string str_fhcal_branch = "FHCalModules";
+  std::string str_mc_tracks_branch = "McTracks";
   std::string str_tpc2mc_tracks_branch = "TpcTracks2McTracks";
 
   AnalysisTree::BranchConfig reco_event_branch(str_reco_event_branch.c_str(), AnalysisTree::DetType::kEventHeader); 
@@ -196,6 +201,10 @@ int main(int argc, char **argv)
 
   mc_event_branch.AddField<float>("B");
   mc_event_branch.AddField<float>("PhiRp");
+  // mc_event_branch.AddField<float>("Centrality_B");
+
+  // reco_event_branch.AddField<float>("refMult");
+  // reco_event_branch.AddField<float>("Centrality_refMult");
 
   tpc_tracks_branch.AddField<int>("nhits");
   tpc_tracks_branch.AddField<int>("nhits_poss");
@@ -208,10 +217,26 @@ int main(int argc, char **argv)
   tpc_tracks_branch.AddField<float>("pid_prob_pion");
   tpc_tracks_branch.AddField<float>("pid_prob_kaon");
   tpc_tracks_branch.AddField<float>("pid_prob_proton");
+  tpc_tracks_branch.AddField<float>("mc_E");
+  tpc_tracks_branch.AddField<float>("mc_pT");
+  tpc_tracks_branch.AddField<float>("mc_eta");
+  tpc_tracks_branch.AddField<float>("mc_phi");
+  tpc_tracks_branch.AddField<float>("mc_rapidity");
+  tpc_tracks_branch.AddField<int>("mc_mother_id");
+  tpc_tracks_branch.AddField<int>("mc_pdg");
+  tpc_tracks_branch.AddField<int>("eta_sign");
+  tpc_tracks_branch.AddField<float>("rapidity_pdg");
+  tpc_tracks_branch.AddField<float>("rapidity_pion");
+  tpc_tracks_branch.AddField<float>("rapidity_kaon");
+  tpc_tracks_branch.AddField<float>("rapidity_proton");
 
   fhcal_branch.AddField<float>("phi");
+  fhcal_branch.AddField<float>("signal_eta_signed");
 
   mc_tracks_branch.AddField<int>("mother_id");
+  mc_tracks_branch.AddField<bool>("is_charged");
+  mc_tracks_branch.AddField<int>("eta_sign");
+
 
   auto hasher = std::hash<std::string>();
 
@@ -245,6 +270,7 @@ int main(int argc, char **argv)
   // fhcal_modules' additional field ids
   const int fhcalid = fhcal_modules->GetId();
   const int ifhcalphi = out_config->GetBranchConfig(fhcalid).GetFieldId("phi");
+  const int ifhcalsign = out_config->GetBranchConfig(fhcalid).GetFieldId("signal_eta_signed");
 
   // tpc_tracks' additional field ids
   const int tpctracksid = tpc_tracks->GetId();
@@ -261,10 +287,24 @@ int main(int argc, char **argv)
   const int ipid_prob_pion = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_pion");
   const int ipid_prob_kaon = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_kaon");
   const int ipid_prob_proton = out_config->GetBranchConfig(tpctracksid).GetFieldId("pid_prob_proton");
+  const int imc_E = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_E");
+  const int imc_pT = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_pT");
+  const int imc_eta = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_eta");
+  const int imc_phi = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_phi");
+  const int imc_rapidity = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_rapidity");
+  const int imc_mother_id = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_mother_id");
+  const int imc_pdg = out_config->GetBranchConfig(tpctracksid).GetFieldId("mc_pdg");
+  const int ietasign = out_config->GetBranchConfig(tpctracksid).GetFieldId("eta_sign");
+  const int irapidity_pion = out_config->GetBranchConfig(tpctracksid).GetFieldId("rapidity_pion");
+  const int irapidity_pdg = out_config->GetBranchConfig(tpctracksid).GetFieldId("rapidity_pdg");
+  const int irapidity_kaon = out_config->GetBranchConfig(tpctracksid).GetFieldId("rapidity_kaon");
+  const int irapidity_proton = out_config->GetBranchConfig(tpctracksid).GetFieldId("rapidity_proton");
 
   // mc_tracks' additional field ids
   const int mctracksid = mc_tracks->GetId();
   const int imother_id = out_config->GetBranchConfig(mctracksid).GetFieldId("mother_id");
+  const int icharge_mc = out_config->GetBranchConfig(mctracksid).GetFieldId("is_charged");
+  const int ietasign_mc = out_config->GetBranchConfig(mctracksid).GetFieldId("eta_sign");
 
   // Create branches in the output tree
   outTree->Branch(str_reco_event_branch.c_str(), "AnalysisTree::EventHeader", &reco_event, 32000, 99);
@@ -278,7 +318,7 @@ int main(int argc, char **argv)
   out_config->Print();
 
   // Starting event loop
-  TVector3 primaryVertex;
+  TVector3 primaryVertex, mc_assoc_mom;
   std::set <Int_t> UsedMCTracks;        // using to remap mc-reco track matching
   std::map <Int_t,Int_t> InitMcNewMcId; // map[old-mc-id] = new-mc-id
   Float_t FHCalSumEnergy[Num_Of_Modules];
@@ -339,9 +379,11 @@ int main(int argc, char **argv)
     for (int imodule=0; imodule<Num_Of_Modules; imodule++)
     {
       auto& module = fhcal_modules->GetChannel(imodule);
+      int fhcal_sign = (imodule < 45) ? -1 : 1;
       module.SetNumber(FHCalNumOfHits[imodule]); // Number of hits that got in the module
       module.SetSignal(FHCalSumEnergy[imodule]); // Total energy from hits in the module
       module.SetField(float(GetFHCalPhi(imodule)), ifhcalphi);
+      module.SetField(float(FHCalSumEnergy[imodule]*(float)fhcal_sign), ifhcalsign);
     }
 
     // Reading Reco Tracks
@@ -356,6 +398,8 @@ int main(int argc, char **argv)
       auto *track = tpc_tracks->AddChannel();
       track->Init(out_config->GetBranchConfig(tpc_tracks->GetId()));
 
+      int tpc_eta_sign = (mpdtrack->GetEta() < 0) ? -1 : 1;
+
       track->SetMomentum(mpdtrack->GetPx(),mpdtrack->GetPy(),mpdtrack->GetPz());
       track->SetField(int(mpdtrack->GetNofHits()), inhits);
       track->SetField(int(mpdtrack->GetNofHitsPossTpc()), inhits_poss);
@@ -368,6 +412,11 @@ int main(int argc, char **argv)
       track->SetField(float(mpdtrack->GetDCAZ()), idcaz);
       charge = (mpdtrack->GetPt() < 0) ? 1 : -1;
       track->SetField(int(charge), icharge);
+      track->SetField(int(tpc_eta_sign), ietasign);
+      Float_t mpdtrack_p = TMath::Sqrt(TMath::Power(mpdtrack->GetPx(),2) + TMath::Power(mpdtrack->GetPy(),2) + TMath::Power(mpdtrack->GetPz(),2));
+      track->SetField(float(GetRapidity(mpdtrack_p, mpdtrack->GetPz(), 0)), irapidity_pion);
+      track->SetField(float(GetRapidity(mpdtrack_p, mpdtrack->GetPz(), 1)), irapidity_kaon);
+      track->SetField(float(GetRapidity(mpdtrack_p, mpdtrack->GetPz(), 2)), irapidity_proton);
 
       // PID
       if (mpdtrack->GetTofFlag() == 2 || mpdtrack->GetTofFlag() == 6)
@@ -395,6 +444,23 @@ int main(int argc, char **argv)
         track->SetField(float(-999.), ipid_prob_kaon);
         track->SetField(float(-999.), ipid_prob_proton);
       }
+
+#ifdef _MCSTACK_
+      FairMCTrack *mctrack = (FairMCTrack*) MCTracks->UncheckedAt(mpdtrack->GetID());
+#endif
+#ifdef _MPDMCSTACK_
+      MpdMCTrack *mctrack = (MpdMCTrack*) MCTracks->UncheckedAt(mpdtrack->GetID());
+#endif
+      mc_assoc_mom.SetXYZ(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPz());
+      track->SetField(float(mctrack->GetEnergy()), imc_E);
+      track->SetField(float(mc_assoc_mom.Pt()), imc_pT);
+      track->SetField(float(mc_assoc_mom.Eta()), imc_eta);
+      track->SetField(float(mc_assoc_mom.Phi()), imc_phi);
+      track->SetField(float(mctrack->GetRapidity()), imc_rapidity);
+      track->SetField(int(mctrack->GetMotherId()), imc_mother_id);
+      track->SetField(int(mctrack->GetPdgCode()), imc_pdg);
+      track->SetField(float(GetRapidityPDG(mpdtrack_p, mpdtrack->GetPz(), mctrack->GetPdgCode())), irapidity_pdg);
+
     } // End of the tpc track loop
 
     // Read Mc tracks
@@ -420,10 +486,14 @@ int main(int argc, char **argv)
       // Collect new Mc Ids
       InitMcNewMcId[imctrack] = track->GetId();
 
+      int mc_eta_sign = (mctrack->GetRapidity() < 0) ? -1 : 1;
+
       track->SetMomentum(mctrack->GetPx(), mctrack->GetPy(), mctrack->GetPz());
       track->SetPid(int(mctrack->GetPdgCode()));
       track->SetMass(float(mctrack->GetMass()));
       track->SetField(int(mctrack->GetMotherId()), imother_id);
+      track->SetField(bool(IsCharged(mctrack->GetPdgCode())), icharge_mc);
+      track->SetField(int(mc_eta_sign), ietasign_mc);
     } // End of the mc track loop
 
     // reco-mc tracks matching
@@ -510,4 +580,39 @@ TVector3 GetFHCalPos(int iModule)
   TVector3 vec(x * xAxisSwitch, y, z);
 
   return vec;
+}
+
+Bool_t IsCharged(Int_t pdg)
+{
+  auto particle = (TParticlePDG *)TDatabasePDG::Instance()->GetParticle(pdg);
+  if (!particle)
+    return false;
+  return ( particle->Charge() != 0 );
+}
+
+Float_t GetRapidity(Float_t p, Float_t pz, Int_t pid_type)
+{
+  Float_t mass; // in GeV/c^2
+  if (pid_type == 0) mass = 0.13957; // pions
+  if (pid_type == 1) mass = 0.493677; // kaons
+  if (pid_type == 2) mass = 0.938272; // protons
+
+  if (pid_type != 0 && pid_type != 1 && pid_type != 2) return -999.;
+
+  Float_t E = TMath::Sqrt(p*p + mass*mass);
+
+  return 0.5 * TMath::Log((E + pz)/(E-pz));
+}
+
+Float_t GetRapidityPDG(Float_t p, Float_t pz, Int_t pdg)
+{
+  Float_t mass;
+
+  auto pdgParticle = (TParticlePDG*)TDatabasePDG::Instance()->GetParticle(pdg);
+  if (!pdgParticle) return -999.;
+  
+  mass = pdgParticle->Mass();
+  Float_t E = TMath::Sqrt(p*p + mass*mass);
+
+  return 0.5 * TMath::Log((E + pz)/(E - pz));
 }

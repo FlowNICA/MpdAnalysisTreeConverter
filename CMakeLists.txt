@@ -7,7 +7,7 @@ find_package(Git)
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
 #---Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
-find_package(ROOT REQUIRED COMPONENTS MathCore RIO Hist Tree Net MathMore)
+find_package(ROOT REQUIRED COMPONENTS MathCore RIO Hist Tree Net MathMore EG)
 
 #---Locate AnalysisTree library
 find_library(AnalysisTree NAMES AnalysisTreeBase PATHS $ENV{ANALYSISTREE_LIB})
@@ -131,3 +131,7 @@ endif()
 add_executable(MpdDst2AnalysisTree "${CMAKE_CURRENT_SOURCE_DIR}/MpdDstAnalysisTree.cpp")
 #target_include_directories(MpdDst2AnalysisTree PUBLIC ${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
 target_link_libraries(MpdDst2AnalysisTree ${MPD_AT_CONVERTER_INCLUDE_LIBRARIES})
+
+# #---Compile dca getter's executable file
+# add_executable(get-dca "${CMAKE_CURRENT_SOURCE_DIR}/get-dca.cpp")
+# target_link_libraries(get-dca ${AnalysisTree} ${ROOT_LIBRARIES})

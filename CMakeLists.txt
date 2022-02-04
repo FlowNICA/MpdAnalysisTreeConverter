@@ -25,6 +25,8 @@ find_package(FairRoot QUIET COMPONENTS Base)
 if(NOT FAIRROOT_FOUND)
   message(FATAL_ERROR "FairRoot package NOT found.")
 endif()
+set(FAIRROOT_INCLUDE_DIR $ENV{FAIRROOTPATH}/include)
+set(FAIRROOT_LIBRARY_DIR $ENV{FAIRROOTPATH}/lib)
 
 #---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
 include(${ROOT_USE_FILE})
@@ -46,20 +48,7 @@ set(MPD_AT_CONVERTER_INCLUDE_DIRECTORIES
   ${ROOT_INLCUDE_DIRS}
   $ENV{ANALYSISTREE_INC}
   ${FAIRROOT_INCLUDE_DIR}
-  ${MPDROOTDIR}/tpc
-  ${MPDROOTDIR}/kalman
-  # ${MPDROOTDIR}/lhetrack
-  ${MPDROOTDIR}/mcstack
-  ${MPDROOTDIR}/generators
-  ${MPDROOTDIR}/strawendcap
-  ${MPDROOTDIR}/etof
-  ${MPDROOTDIR}/tof
-  ${MPDROOTDIR}/sft
-  ${MPDROOTDIR}/sts
-  ${MPDROOTDIR}/zdc
-  ${MPDROOTDIR}/mpddst
-  ${MPDROOTDIR}/mpdbase
-  ${MPDROOTDIR}/mpdpid
+  ${MPDROOTDIR}/include
 )
 
 include_directories(${MPD_AT_CONVERTER_INCLUDE_DIRECTORIES})
